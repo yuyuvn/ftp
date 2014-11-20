@@ -22,6 +22,14 @@ void response(Command *cmd, State *state)
     case ABOR: ftp_abor(state); break;
     case QUIT: ftp_quit(state); break;
     case TYPE: ftp_type(cmd,state); break;
+    case ALLO: ftp_allo(cmd, state); break; // TODO
+    case CDUP: break; // TODO
+    case HELP: break; // TODO
+    case NLST: break; // TODO
+    case RETR: break; // TODO
+    case RNFR: break; // TODO
+    case RNTO: break; // TODO
+    case STOR: break; // TODO
     case NOOP:
       if(state->logged_in){
         state->message = "200 Nice to NOOP you!\n";
@@ -496,5 +504,28 @@ void str_perm(int perm, char *str_perm)
     sprintf(fbuff,"%c%c%c",read?'r':'-' ,write?'w':'-', exec?'x':'-');
     strcat(str_perm,fbuff);
 
+  }
+}
+
+void ftp_allo(Command * cmd, State *state)
+{
+  if(state->logged_in){
+    FILE *fp;
+    size_t size;
+    char *buff,path[80];
+
+    size = atoi(cmd->arg);
+    sprintf("/tmp/temp%d",state->tr_pid);
+    fp = fopen(path, "w+");
+    buff = (char*)malloc(size);
+    if (fp && buff) {
+      fwrite(buff, size, 1, fp);
+    } else {
+      state->message = "5xx Could not allocate size.\n"; // TODO return code
+    }
+    if (fp) fclose(fp);
+    state->message = "2xx Size allocated.\n"; // TODO return code
+  }else{
+    state->message = "530 Please login with USER and PASS.\n";
   }
 }

@@ -78,7 +78,8 @@ static const char *cmdlist_str[] =
 {
   "ABOR", "CWD", "DELE", "LIST", "MDTM", "MKD", "NLST", "PASS", "PASV",
   "PORT", "PWD", "QUIT", "RETR", "RMD", "RNFR", "RNTO", "SITE", "SIZE",
-  "STOR", "TYPE", "USER", "NOOP" 
+  "STOR", "TYPE", "USER", "NOOP", "ALLO", "CDUP", "HELP", "NLST", "RETR",
+  "RNFR", "RNTO", "STOR"
 };
 
 /* Valid usernames for anonymous ftp */
