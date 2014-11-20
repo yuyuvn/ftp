@@ -23,8 +23,8 @@ void response(Command *cmd, State *state)
     case QUIT: ftp_quit(state); break;
     case TYPE: ftp_type(cmd,state); break;
     case ALLO: ftp_allo(cmd, state); break; // TODO
-    case CDUP: break; // TODO
-    case HELP: break; // TODO
+    case CDUP: ftp_cdup(state); break; // TODO
+    case HELP: ftp_help(state); break; // TODO
     case NLST: break; // TODO
     case RETR: break; // TODO
     case RNFR: break; // TODO
@@ -515,6 +515,10 @@ void ftp_allo(Command * cmd, State *state)
     char *buff,path[80];
 
     size = atoi(cmd->arg);
+    if (size < 1) {
+      state->message = "xxx size argument must be larger than 0\n";
+      return;
+    }
     sprintf("/tmp/temp%d",state->tr_pid);
     fp = fopen(path, "w+");
     buff = (char*)malloc(size);
@@ -528,4 +532,18 @@ void ftp_allo(Command * cmd, State *state)
   }else{
     state->message = "530 Please login with USER and PASS.\n";
   }
+}
+
+void ftp_cdup(State *state)
+{
+  if(state->logged_in){
+    chdir("..");
+    state->message = "2xx Change dir susscefull.\n"; // TODO return code
+  }else{
+    state->message = "530 Please login with USER and PASS.\n";
+  }
+}
+
+void ftp_help(state) {
+  state->message = "This is hedspi ftp server!\n";
 }
