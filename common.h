@@ -47,6 +47,8 @@ typedef struct State
   /* Transfer process id */
   int tr_pid;
 
+  /* Rename buffer */
+  char *rename;
 } State;
 
 
@@ -69,17 +71,19 @@ typedef enum conn_mode{ NORMAL, SERVER, CLIENT }conn_mode;
 typedef enum cmdlist 
 { 
   ABOR, CWD, DELE, LIST, MDTM, MKD, NLST, PASS, PASV,
-  PORT, PWD, QUIT, RETR, RMD, RNFR, RNTO, SITE, SIZE,
-  STOR, TYPE, USER, NOOP
+  PORT, PWD, QUIT, RETR, RMD, RNFR, RNTO, SIZE,
+  STOR, TYPE, USER, NOOP,
+  ALLO, CDUP, HELP, NLST
 } cmdlist;
 
 /* String mappings for cmdlist */
 static const char *cmdlist_str[] = 
 {
   "ABOR", "CWD", "DELE", "LIST", "MDTM", "MKD", "NLST", "PASS", "PASV",
-  "PORT", "PWD", "QUIT", "RETR", "RMD", "RNFR", "RNTO", "SITE", "SIZE",
-  "STOR", "TYPE", "USER", "NOOP", "ALLO", "CDUP", "HELP", "NLST", "RETR",
-  "RNFR", "RNTO", "STOR"
+  "PORT", "PWD", "QUIT", "RETR", "RMD", "RNFR", "RNTO", "SIZE",
+  "STOR", "TYPE", "USER", "NOOP",
+  "ALLO", "CDUP", "HELP", "NLST",
+  "STOR"
 };
 
 /* Valid usernames for anonymous ftp */
@@ -115,6 +119,12 @@ void ftp_size(Command *, State *);
 void ftp_quit(State *);
 void ftp_type(Command *, State *);
 void ftp_abor(State *);
+void ftp_nlst(Command *, State *);
+void ftp_allo(Command *, State *);
+void ftp_rnfr(Command *, State *); 
+void ftp_rnto(Command *, State *);
+void ftp_cdup(State *);
+void ftp_help(State *);
 
 void str_perm(int, char *);
 void my_wait(int);

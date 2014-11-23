@@ -22,14 +22,12 @@ void response(Command *cmd, State *state)
     case ABOR: ftp_abor(state); break;
     case QUIT: ftp_quit(state); break;
     case TYPE: ftp_type(cmd,state); break;
-    case ALLO: ftp_allo(cmd, state); break; // TODO
-    case CDUP: ftp_cdup(state); break; // TODO
-    case HELP: ftp_help(state); break; // TODO
-    case NLST: break; // TODO
-    case RETR: break; // TODO
-    case RNFR: break; // TODO
-    case RNTO: break; // TODO
-    case STOR: break; // TODO
+    case ALLO: ftp_allo(cmd, state); break;
+    case CDUP: ftp_cdup(state); break;
+    case HELP: ftp_help(state); break;
+    case NLST: ftp_nlst(cmd, state); break;
+    case RNFR: ftp_rnfr(cmd, state); break;
+    case RNTO: ftp_rnto(cmd, state); break;
     case NOOP:
       if(state->logged_in){
         state->message = "200 Nice to NOOP you!\n";
@@ -392,6 +390,7 @@ void ftp_abor(State *state)
   if(state->logged_in){
     state->message = "226 Closing data connection.\n";
     state->message = "225 Data connection open; no transfer in progress.\n";
+	// TODO
   }else{
     state->message = "530 Please login with USER and PASS.\n";
   }
@@ -507,7 +506,7 @@ void str_perm(int perm, char *str_perm)
   }
 }
 
-void ftp_allo(Command * cmd, State *state)
+void ftp_allo(Command *cmd, State *state)
 {
   if(state->logged_in){
     FILE *fp;
@@ -515,23 +514,24 @@ void ftp_allo(Command * cmd, State *state)
     char *buff,path[80];
 
     size = atoi(cmd->arg);
-    if (size < 1) {
-      state->message = "xxx size argument must be larger than 0\n";
-      return;
-    }
-    sprintf("/tmp/temp%d",state->tr_pid);
-    fp = fopen(path, "w+");
-    buff = (char*)malloc(size);
-    if (fp && buff) {
-      fwrite(buff, size, 1, fp);
-    } else {
-      state->message = "5xx Could not allocate size.\n"; // TODO return code
-    }
-    if (fp) fclose(fp);
-    state->message = "2xx Size allocated.\n"; // TODO return code
+    if (size > 0) {
+		sprintf("/tmp/temp%d",state->tr_pid);
+		fp = fopen(path, "w+");
+		buff = (char*)malloc(size);
+		if (fp && buff) {
+		  fwrite(buff, size, 1, fp);
+		} else {
+		  state->message = "5xx Could not allocate size.\n"; // TODO return code
+		}
+		if (fp) fclose(fp);
+		state->message = "2xx Size allocated.\n"; // TODO return code
+	} else {
+		state->message = "xxx size argument must be larger than 0\n";
+	}
   }else{
     state->message = "530 Please login with USER and PASS.\n";
   }
+  write_state(state);
 }
 
 void ftp_cdup(State *state)
@@ -542,8 +542,113 @@ void ftp_cdup(State *state)
   }else{
     state->message = "530 Please login with USER and PASS.\n";
   }
+  write_state(state);
 }
 
-void ftp_help(state) {
+void ftp_help(State *state) 
+{
   state->message = "This is hedspi ftp server!\n";
+  write_state(state);
+}
+
+void ftp_nlst(Command *cmd, State *state) 
+{
+  if(state->logged_in==1){
+    struct dirent *entry;
+    struct stat statbuf;
+    struct tm *time;
+    char timebuff[80], current_dir[BSIZE];
+    int connection;
+    time_t rawtime;
+
+    /* TODO: dynamic buffering maybe? */
+    char cwd[BSIZE], cwd_orig[BSIZE];
+    memset(cwd,0,BSIZE);
+    memset(cwd_orig,0,BSIZE);
+    
+    /* Later we want to go to the original path */
+    getcwd(cwd_orig,BSIZE);
+    
+    /* Just chdir to specified path */
+    if(strlen(cmd->arg)>0&&cmd->arg[0]!='-'){
+      chdir(cmd->arg);
+    }
+    
+    getcwd(cwd,BSIZE);
+    DIR *dp = opendir(cwd);
+
+    if(!dp){
+      state->message = "550 Failed to open directory.\n";
+    }else{
+      if(state->mode == SERVER){
+
+        connection = accept_connection(state->sock_pasv);
+        state->message = "150 Here comes the directory listing.\n";
+        puts(state->message);
+
+        while(entry=readdir(dp)){
+          if(stat(entry->d_name,&statbuf)==-1){
+            fprintf(stderr, "FTP: Error reading file stats...\n");
+          }else{
+            char *perms = malloc(9);
+            memset(perms,0,9);
+
+            /* Convert time_t to tm struct */
+			// TODO: print filename
+            dprintf(connection,
+                "%c%s %5d %4d %4d %8d %s %s\r\n", 
+                (entry->d_type==DT_DIR)?'d':'-',
+                perms,statbuf.st_nlink,
+                statbuf.st_uid, 
+                statbuf.st_gid,
+                statbuf.st_size,
+                timebuff,
+                entry->d_name);
+          }
+        }
+        write_state(state);
+        state->message = "226 Directory send OK.\n";
+        state->mode = NORMAL;
+        close(connection);
+        close(state->sock_pasv);
+
+      }else if(state->mode == CLIENT){
+        state->message = "502 Command not implemented.\n";
+      }else{
+        state->message = "425 Use PASV or PORT first.\n";
+      }
+    }
+    closedir(dp);
+    chdir(cwd_orig);
+  }else{
+    state->message = "530 Please login with USER and PASS.\n";
+  }
+  state->mode = NORMAL;
+  write_state(state);
+}
+
+void ftp_rnfr(Command *cmd, State *state)
+{
+  if(state->logged_in){
+    state->rename = malloc(32);
+	// TODO: check file exists
+	strcpy(state->rename, cmd->arg);
+	state->message = "2xx susscessfull \n"; // TODO write susscess code
+  }else{
+    state->message = "530 Please login with USER and PASS.\n";
+  }
+  state->mode = NORMAL;
+  write_state(state);
+}
+
+void ftp_rnto(Command *cmd, State *state)
+{
+  if(state->logged_in){
+	// TODO: check file exists
+	// Rename from state->rename to cmd->arg
+	state->message = "2xx susscessfull \n"; // TODO write susscess code
+  }else{
+    state->message = "530 Please login with USER and PASS.\n";
+  }
+  write_state(state);
 }
