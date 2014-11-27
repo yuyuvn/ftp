@@ -25,6 +25,7 @@ void server(int port)
     }
 
     if(pid==0){
+      state->tr_pid = 0;
       close(sock);
       char welcome[BSIZE] = "220 ";
       if(strlen(welcome_message)<BSIZE-4){

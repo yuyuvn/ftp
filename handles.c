@@ -333,6 +333,7 @@ void ftp_stor(Command *cmd, State *state)
     int res = 1;
     const int buff_size = 8192;
 
+    state->tr_pid = getpid();
     FILE *fp = fopen(cmd->arg,"w");
 
     if(fp==NULL){
@@ -375,6 +376,7 @@ void ftp_stor(Command *cmd, State *state)
     }else{
       state->message = "530 Please login with USER and PASS.\n";
     }
+    state->tr_pid = 0;
     close(connection);
     write_state(state);
     exit(EXIT_SUCCESS);
@@ -389,8 +391,12 @@ void ftp_abor(State *state)
 {
   if(state->logged_in){
     state->message = "226 Closing data connection.\n";
-    state->message = "225 Data connection open; no transfer in progress.\n";
-	// TODO
+    if (state->sock_pasv) {
+      if (state->tr_pid > 0) kill(state->tr_pid, SIGTERM);
+      close(state->sock_pasv);
+    } else {
+      state->message = "225 Data connection open; no transfer in progress.\n";
+    }
   }else{
     state->message = "530 Please login with USER and PASS.\n";
   }
@@ -515,19 +521,19 @@ void ftp_allo(Command *cmd, State *state)
 
     size = atoi(cmd->arg);
     if (size > 0) {
-		sprintf("/tmp/temp%d",state->tr_pid);
-		fp = fopen(path, "w+");
-		buff = (char*)malloc(size);
-		if (fp && buff) {
-		  fwrite(buff, size, 1, fp);
-		} else {
-		  state->message = "5xx Could not allocate size.\n"; // TODO return code
-		}
-		if (fp) fclose(fp);
-		state->message = "2xx Size allocated.\n"; // TODO return code
-	} else {
-		state->message = "xxx size argument must be larger than 0\n";
-	}
+      sprintf(buff, "/tmp/temp%d",state->tr_pid);
+      fp = fopen(path, "w+");
+      buff = (char*)malloc(size);
+      if (fp && buff) {
+	fwrite(buff, size, 1, fp);
+      } else {
+	state->message = "5xx Could not allocate size.\n"; // TODO return code
+      }
+      if (fp) fclose(fp);
+      state->message = "2xx Size allocated.\n"; // TODO return code
+    } else {
+      state->message = "xxx size argument must be larger than 0\n";
+    }
   }else{
     state->message = "530 Please login with USER and PASS.\n";
   }
@@ -594,7 +600,6 @@ void ftp_nlst(Command *cmd, State *state)
             memset(perms,0,9);
 
             /* Convert time_t to tm struct */
-			// TODO: print filename
             dprintf(connection,
                 "%c%s %5d %4d %4d %8d %s %s\r\n", 
                 (entry->d_type==DT_DIR)?'d':'-',
@@ -631,9 +636,8 @@ void ftp_rnfr(Command *cmd, State *state)
 {
   if(state->logged_in){
     state->rename = malloc(32);
-	// TODO: check file exists
-	strcpy(state->rename, cmd->arg);
-	state->message = "2xx susscessfull \n"; // TODO write susscess code
+    strcpy(state->rename, cmd->arg);
+    state->message = "2xx susscessfull \n"; // TODO write susscess code
   }else{
     state->message = "530 Please login with USER and PASS.\n";
   }
@@ -643,10 +647,14 @@ void ftp_rnfr(Command *cmd, State *state)
 
 void ftp_rnto(Command *cmd, State *state)
 {
+  int result;
   if(state->logged_in){
-	// TODO: check file exists
-	// Rename from state->rename to cmd->arg
-	state->message = "2xx susscessfull \n"; // TODO write susscess code
+    result = rename(state->rename, cmd->arg);
+    if (result == 0) {
+      state->message = "2xx susscessfull\n"; // TODO write susscess code
+    } else {
+      state->message = "4xx rename errored\n"; // TODO write error code
+    }
   }else{
     state->message = "530 Please login with USER and PASS.\n";
   }

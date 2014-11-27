@@ -73,7 +73,7 @@ typedef enum cmdlist
   ABOR, CWD, DELE, LIST, MDTM, MKD, NLST, PASS, PASV,
   PORT, PWD, QUIT, RETR, RMD, RNFR, RNTO, SIZE,
   STOR, TYPE, USER, NOOP,
-  ALLO, CDUP, HELP, NLST
+  ALLO, CDUP, HELP,
 } cmdlist;
 
 /* String mappings for cmdlist */
