@@ -15,6 +15,7 @@ void server(int port)
     char buffer[BSIZE];
     Command *cmd = malloc(sizeof(Command));
     State *state = malloc(sizeof(State));
+    memset(state,0,sizeof(State));
     pid = fork();
     
     memset(buffer,0,BSIZE);
@@ -45,7 +46,7 @@ void server(int port)
 
         if(!(bytes_read>BSIZE)){
           /* TODO: output this to log */
-          printf("User %s sent command: %s\n",(state->username==0)?"unknown":state->username,buffer);
+          printf("User %s sent command: %s\n",(!state->username_ok)?"unknown":state->user.username,buffer);
           parse_command(buffer,cmd);
           state->connection = connection;
           
@@ -165,6 +166,16 @@ int lookup(char *needle, const char **haystack, int count)
   return -1;
 }
 
+int get_user(char *username, Users us, User *user) {
+  int i;
+  for (i=0;i<us.count;i++) {
+    if (strcmp(username, us.users[i].username)==0) {
+      *user = us.users[i];
+      return i;
+    }
+  }
+  return -1;
+}
 
 /** 
  * Writes current state to client
@@ -206,9 +217,45 @@ void my_wait(int signum)
   wait(&status);
 }
 
+Users get_users(const char* filename)
+{
+  FILE *handler;
+  Users u;
+  User *us;
+  int c = 0;
+  char buffer[80], *f;
+
+  handler = fopen(filename,"r");
+  if (!handler) {
+    printf("Can't open %s\n",filename);
+    exit(1);
+  }
+  
+  while ( fgets (buffer , 79 , handler) != NULL ) c++;
+  us = (User*)malloc(sizeof(User)*c);
+  fseek(handler, 0,SEEK_SET);
+  
+  c = 0;
+  while (fgets (buffer, 79, handler) != NULL) {
+    f = strchr(buffer,'|');
+    if (f) *f = '\0';
+    else continue;
+    ++f;
+    if (f[strlen(f)-1]=='\n') f[strlen(f)-1]='\0';
+    strcpy(us[c].username,buffer);
+    strcpy(us[c].password,f);
+    c++;
+  }
+  fclose(handler);
+  
+  u.users = us;
+  u.count = c;
+  return u;
+}
+
 main()
 {
+  users = get_users("users.txt");
   server(8021);
   return 0;
-
 }

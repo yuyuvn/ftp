@@ -1,3 +1,5 @@
+#ifndef _COMMON_
+#define _COMMON_
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
@@ -23,6 +25,18 @@ typedef struct Port
   int p2;
 } Port;
 
+typedef struct User
+{
+  char username[32];
+  char password[32];
+} User;
+
+typedef struct Users
+{
+  User *users;
+  int count;
+} Users;
+
 typedef struct State
 {
   /* Connection mode: NORMAL, SERVER, CLIENT */
@@ -33,7 +47,7 @@ typedef struct State
 
   /* Is this username allowed? */
   int username_ok;
-  char *username;
+  User user;
   
   /* Response message to client e.g. 220 Welcome */
   char *message;
@@ -86,12 +100,6 @@ static const char *cmdlist_str[] =
   "STOR"
 };
 
-/* Valid usernames for anonymous ftp */
-static const char *usernames[] = 
-{
-  "ftp","anonymous","public","anon","test","foo","siim"
-};
-
 /* Welcome message */
 static char *welcome_message = "A very warm welcome!";
 
@@ -128,3 +136,6 @@ void ftp_help(State *);
 
 void str_perm(int, char *);
 void my_wait(int);
+
+Users users;
+#endif

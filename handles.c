@@ -50,11 +50,9 @@ void response(Command *cmd, State *state)
  */
 void ftp_user(Command *cmd, State *state)
 {
-  const int total_usernames = sizeof(usernames)/sizeof(char *);
-  if(lookup(cmd->arg,usernames,total_usernames)>=0){
-    state->username = malloc(32);
-    memset(state->username,0,32);
-    strcpy(state->username,cmd->arg);
+  User user;
+  if(get_user(cmd->arg,users,&user)>=0){
+    state->user = user;
     state->username_ok = 1;
     state->message = "331 User name okay, need password\n";
   }else{
@@ -67,10 +65,14 @@ void ftp_user(Command *cmd, State *state)
 void ftp_pass(Command *cmd, State *state)
 {
   if(state->username_ok==1){
-    state->logged_in = 1;
-    state->message = "230 Login successful\n";
+    if (strcmp(state->user.password,cmd->arg)==0 || strlen(state->user.password)==0) {
+      state->logged_in = 1;
+      state->message = "230 Login successful\n";
+    } else {
+      state->message = "500 Invalid username or password\n";
+    }
   }else{
-    state->message = "500 Invalid username or password\n";
+    state->message = "530 Invalid username\n";
   }
   write_state(state);
 }
