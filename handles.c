@@ -22,12 +22,12 @@ void response(Command *cmd, State *state)
     case ABOR: ftp_abor(state); break;
     case QUIT: ftp_quit(state); break;
     case TYPE: ftp_type(cmd,state); break;
-    case ALLO: ftp_allo(cmd, state); break;
     case CDUP: ftp_cdup(state); break;
-    case HELP: ftp_help(state); break;
+    case HELP: ftp_help(cmd, state); break;
     case NLST: ftp_nlst(cmd, state); break;
     case RNFR: ftp_rnfr(cmd, state); break;
     case RNTO: ftp_rnto(cmd, state); break;
+    case APPE: ftp_appe(cmd, state); break;
     case NOOP:
       if(state->logged_in){
         state->message = "200 Nice to NOOP you!\n";
@@ -327,7 +327,6 @@ void ftp_retr(Command *cmd, State *state)
   close(state->sock_pasv);
 }
 
-/** Handle STOR command. TODO: check permissions. */
 void ftp_stor(Command *cmd, State *state)
 {
   int pid;
@@ -341,7 +340,7 @@ void ftp_stor(Command *cmd, State *state)
     FILE *fp = fopen(cmd->arg,"w");
 
     if(fp==NULL){
-      /* TODO: write status message here! */
+      state->message = "451 Can't write file.\n";
       perror("ftp_stor:fopen");
     }else if(state->logged_in){
       if(!(state->mode==SERVER)){
@@ -365,7 +364,6 @@ void ftp_stor(Command *cmd, State *state)
           splice(pipefd[0], NULL, fd, 0, buff_size, SPLICE_F_MORE | SPLICE_F_MOVE);
         }
 
-        /* TODO: signal with ABOR command to exit */
 
         /* Internal error */
         if(res==-1){
@@ -517,48 +515,88 @@ void str_perm(int perm, char *str_perm)
   }
 }
 
-void ftp_allo(Command *cmd, State *state)
-{
-  if(state->logged_in){
-    FILE *fp;
-    size_t size;
-    char *buff,path[80];
-
-    size = atoi(cmd->arg);
-    if (size > 0) {
-      sprintf(buff, "/tmp/temp%d",state->tr_pid);
-      fp = fopen(path, "w+");
-      buff = (char*)malloc(size);
-      if (fp && buff) {
-	fwrite(buff, size, 1, fp);
-      } else {
-	state->message = "351 Could not allocate size, please try again.\n"; // TODO return code
-      }
-      if (fp) fclose(fp);
-      state->message = "333 Allocated, wait file.\n"; // TODO return code
-    } else {
-      state->message = "501 size argument must be larger than 0\n";
-    }
-  }else{
-    state->message = "530 Please login with USER and PASS.\n";
-  }
-  write_state(state);
-}
-
 void ftp_cdup(State *state)
 {
   if(state->logged_in){
     chdir("..");
-    state->message = "212 Change dir susscefull.\n"; // TODO return code
+    state->message = "250 Change dir susscefull.\n";
   }else{
     state->message = "530 Please login with USER and PASS.\n";
   }
   write_state(state);
 }
 
-void ftp_help(State *state) 
+void ftp_help(Command *cmd, State *state) 
 {
-  state->message = "214 This is hedspi ftp server!\n";
+  switch(lookup_cmd(cmd->command)){
+    case USER: 
+      state->message = "214 Syntax: USER <sp> username\n";
+      break;
+    case PASS:
+      state->message = "214 Syntax: PASS <sp> password\n";
+      break;
+    case PASV:
+      state->message = "214 Syntax: PASV\n";
+      break;
+    case LIST:
+      state->message = "214 Syntax: LIST\n";
+      break;
+    case CWD:
+      state->message = "214 Syntax: CWD pathname\n";
+      break;
+    case PWD:
+      state->message = "214 Syntax: PWD\n";
+      break;
+    case MKD:
+      state->message = "214 Syntax: MKD dirname\n";
+      break;
+    case RMD:
+      state->message = "214 Syntax: RMD dirname\n";
+      break;
+    case RETR:
+      state->message = "214 Syntax: RETRe\n";
+      break;
+    case STOR:
+      state->message = "214 Syntax: STOR\n";
+      break;
+    case DELE:
+      state->message = "214 Syntax: DELE filename\n";
+      break;
+    case SIZE:
+      state->message = "214 Syntax: SIZE filename\n";
+      break;
+    case ABOR:
+      state->message = "214 Syntax: ABOR\n";
+      break;
+    case QUIT:
+      state->message = "214 Syntax: QUIT\n";
+      break;
+    case TYPE:
+      state->message = "214 Syntax: TYPE type\n";
+      break;
+    case CDUP:
+      state->message = "214 Syntax: CDUP\n";
+      break;
+    case HELP:
+      state->message = "214 Syntax: HELP\n";
+      break;
+    case NLST:
+      state->message = "214 Syntax: NLST\n";
+      break;
+    case RNFR:
+      state->message = "214 Syntax: RNFR filename\n";
+      break;
+    case RNTO:
+      state->message = "214 Syntax: RNTO filename\n";
+      break;
+    case APPE:
+      state->message = "214 Syntax: APPE\n";
+      break;
+    case NOOP:
+      state->message = "214 Syntax: NOOP\n";
+      break;
+  }
+  state->message = "214 This is hedspi ftp server! Check manual for more information\n";
   write_state(state);
 }
 
@@ -605,14 +643,12 @@ void ftp_nlst(Command *cmd, State *state)
             memset(perms,0,9);
 
             /* Convert time_t to tm struct */
+            rawtime = statbuf.st_mtime;
+            time = localtime(&rawtime);
+            strftime(timebuff,80,"%b %d %H:%M",time);
+            str_perm((statbuf.st_mode & ALLPERMS), perms);
             dprintf(connection,
-                "%c%s %5d %4d %4d %8d %s %s\r\n", 
-                (entry->d_type==DT_DIR)?'d':'-',
-                perms,statbuf.st_nlink,
-                statbuf.st_uid, 
-                statbuf.st_gid,
-                statbuf.st_size,
-                timebuff,
+                "%s\015\012",
                 entry->d_name);
           }
         }
@@ -639,10 +675,16 @@ void ftp_nlst(Command *cmd, State *state)
 
 void ftp_rnfr(Command *cmd, State *state)
 {
-  if(state->logged_in){
-    state->rename = malloc(32);
-    strcpy(state->rename, cmd->arg);
-    state->message = "333 File ok, need file rename to\n"; // TODO write susscess code
+  struct stat st;
+  if(state->logged_in){    
+    int result = stat(cmd->arg, &st);
+    if (result != 0) {
+      state->message = "450 File not found!\n";
+    } else {
+      state->rename = malloc(32);
+      strcpy(state->rename, cmd->arg);
+      state->message = "350 File ok, need file rename to\n";
+    }
   }else{
     state->message = "530 Please login with USER and PASS.\n";
   }
@@ -656,12 +698,74 @@ void ftp_rnto(Command *cmd, State *state)
   if(state->logged_in){
     result = rename(state->rename, cmd->arg);
     if (result == 0) {
-      state->message = "200 Rename susscessfully\n"; // TODO write susscess code
+      state->message = "250 Rename susscessfully\n";
     } else {
-      state->message = "452 Rename errored\n"; // TODO write error code
+      state->message = "553 Rename errored\n";
     }
   }else{
     state->message = "530 Please login with USER and PASS.\n";
   }
   write_state(state);
+}
+
+void ftp_appe(Command *cmd, State *state)
+{
+  int pid;
+  if((pid = fork())==0){
+    int connection, fd;
+    off_t offset = 0;
+    int pipefd[2];
+    int res = 1;
+    const int buff_size = 8192;
+
+    FILE *fp = fopen(cmd->arg,"a");
+
+    if(fp==NULL){
+      state->message = "451 Can't write file.\n";
+      perror("ftp_stor:fopen");
+    }else if(state->logged_in){
+      if(!(state->mode==SERVER)){
+        state->message = "550 Please use PASV instead of PORT.\n";
+      }
+      /* Passive mode */
+      else{
+        fd = fileno(fp);
+        connection = accept_connection(state->sock_pasv);
+        close(state->sock_pasv);
+        if(pipe(pipefd)==-1)perror("ftp_stor: pipe");
+
+        state->message = "125 Data connection already open; transfer starting.\n";
+        write_state(state);
+
+        /* Using splice function for file receiving.
+         * The splice() system call first appeared in Linux 2.6.17.
+         */
+
+        while ((res = splice(connection, 0, pipefd[1], NULL, buff_size, SPLICE_F_MORE | SPLICE_F_MOVE))>0){
+          splice(pipefd[0], NULL, fd, 0, buff_size, SPLICE_F_MORE | SPLICE_F_MOVE);
+        }
+
+
+        /* Internal error */
+        if(res==-1){
+          perror("ftp_stor: splice");
+          exit(EXIT_SUCCESS);
+        }else{
+          state->message = "226 File send OK.\n";
+        }
+        close(connection);
+        close(fd);
+      }
+    }else{
+      state->message = "530 Please login with USER and PASS.\n";
+    }
+    close(connection);
+    write_state(state);
+    exit(EXIT_SUCCESS);
+  } else if (pid > 0) {
+    state->tr_pid = pid;
+  }
+  state->mode = NORMAL;
+  close(state->sock_pasv);
+
 }
