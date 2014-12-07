@@ -131,7 +131,7 @@ void ftp_nlst(Command *, State *);
 void ftp_rnfr(Command *, State *); 
 void ftp_rnto(Command *, State *);
 void ftp_cdup(State *);
-void ftp_help(State *);
+void ftp_help(Command *, State *);
 
 void str_perm(int, char *);
 void my_wait(int);
