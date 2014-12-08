@@ -296,9 +296,18 @@ char* getFtpPath(char *path, const char *root) {
   return path;
 }
 
-main()
+int main( int arn, char *arv[])
 {
-  users = get_users("users.txt");
-  server(8021);
+  int port;
+  if (arn >= 3) {
+    users = get_users(arv[2]);
+  } else {
+    users = get_users("users.txt");
+  }
+  if (arn >= 2) {
+    port = atoi(arv[1]);
+  } else port = 8021;
+  
+  server(port);
   return 0;
 }
