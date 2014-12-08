@@ -32,7 +32,7 @@ void server(int port)
       if(strlen(welcome_message)<BSIZE-4){
         strcat(welcome,welcome_message);
       }else{
-        strcat(welcome, "Welcome to nice FTP service.");
+        strcat(welcome, "Welcome to HEDSPI FTP service.");
       }
 
       /* Write welcome message */
@@ -223,7 +223,7 @@ Users get_users(const char* filename)
   Users u;
   User *us;
   int c = 0;
-  char buffer[80], *f;
+  char buffer[80], *f,*f2,cwd[BSIZE];
 
   handler = fopen(filename,"r");
   if (!handler) {
@@ -240,10 +240,25 @@ Users get_users(const char* filename)
     f = strchr(buffer,'|');
     if (f) *f = '\0';
     else continue;
-    ++f;
-    if (f[strlen(f)-1]=='\n') f[strlen(f)-1]='\0';
+    f2 = strchr(++f,'|');
+    if (f2) *f2 = '\0';
+    else continue;
+    ++f2;
+    if (f2[strlen(f2)-1]=='\n') f2[strlen(f2)-1]='\0';
+    if (f2[strlen(f2)-1]=='\r') f2[strlen(f2)-1]='\0';
+    if (f2[0]!='/') {
+      getcwd(cwd,BSIZE);
+      if (cwd[strlen(cwd)-1]!='/') {
+        cwd[strlen(cwd)+1]='\0';
+        cwd[strlen(cwd)]='/';
+      }
+      strcat(cwd,f2);
+      strcpy(f2,cwd);
+    }
+    if (f2[strlen(f2)-1]=='/') f2[strlen(f2)-1]='\0';
     strcpy(us[c].username,buffer);
     strcpy(us[c].password,f);
+    strcpy(us[c].root,f2);
     c++;
   }
   fclose(handler);
@@ -251,6 +266,34 @@ Users get_users(const char* filename)
   u.users = us;
   u.count = c;
   return u;
+}
+
+char* getLocalPath(char *path, const char *root) {
+  int i=0,j;
+  const char *c;
+  if (path[0] != '/') return path; // relative path
+  //memcpy(path,path+strlen(root),strlen(path)+1);
+  //memcpy(path,root,strlen(root));
+  j = strlen(root);
+  for (i=strlen(path);i>=0;i--) {
+    path[i+j] = path[i];
+  }
+  i = 0;
+  c = root;
+  while (*c) {
+    path[i++] = *c;
+    c++;
+  }
+  return path;
+}
+
+char* getFtpPath(char *path, const char *root) {
+  strcpy(path, path + strlen(root));
+  if (path[0] == '\0')  {
+    path[0] = '/';
+    path[1] = '\0';
+  }
+  return path;
 }
 
 main()

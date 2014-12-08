@@ -68,6 +68,7 @@ void ftp_pass(Command *cmd, State *state)
     if (strcmp(state->user.password,cmd->arg)==0 || strlen(state->user.password)==0) {
       state->logged_in = 1;
       state->message = "230 Login successful\n";
+      chdir(state->user.root);
     } else {
       state->message = "500 Invalid username or password\n";
     }
@@ -127,7 +128,7 @@ void ftp_list(Command *cmd, State *state)
     
     /* Just chdir to specified path */
     if(strlen(cmd->arg)>0&&cmd->arg[0]!='-'){
-      chdir(cmd->arg);
+      chdir(getLocalPath(cmd->arg,state->user.root));
     }
     
     getcwd(cwd,BSIZE);
@@ -204,6 +205,7 @@ void ftp_pwd(Command *cmd, State *state)
     char result[BSIZE];
     memset(result, 0, BSIZE);
     if(getcwd(cwd,BSIZE)!=NULL){
+      getFtpPath(cwd,state->user.root);
       strcat(result,"257 \"");
       strcat(result,cwd);
       strcat(result,"\"\n");
@@ -219,7 +221,7 @@ void ftp_pwd(Command *cmd, State *state)
 void ftp_cwd(Command *cmd, State *state)
 {
   if(state->logged_in){
-    if(chdir(cmd->arg)==0){
+    if(chdir(getLocalPath(cmd->arg,state->user.root))==0){
       state->message = "250 Directory successfully changed.\n";
     }else{
       state->message = "550 Failed to change directory.\n";
@@ -244,6 +246,7 @@ void ftp_mkd(Command *cmd, State *state)
     memset(res,0,BSIZE);
     getcwd(cwd,BSIZE);
 
+    getLocalPath(cmd->arg,state->user.root);
     /* TODO: check if directory already exists with chdir? */
 
     /* Absolute path */
@@ -286,6 +289,7 @@ void ftp_retr(Command *cmd, State *state)
 
       /* Passive mode */
       if(state->mode == SERVER){
+        getLocalPath(cmd->arg,state->user.root);
         if(access(cmd->arg,R_OK)==0 && (fd = open(cmd->arg,O_RDONLY))){
           fstat(fd,&stat_buf);
           
@@ -337,6 +341,7 @@ void ftp_stor(Command *cmd, State *state)
     int res = 1;
     const int buff_size = 8192;
 
+    getLocalPath(cmd->arg,state->user.root);
     FILE *fp = fopen(cmd->arg,"w");
 
     if(fp==NULL){
@@ -433,6 +438,7 @@ void ftp_type(Command *cmd,State *state)
 void ftp_dele(Command *cmd,State *state)
 {
   if(state->logged_in){
+    getLocalPath(cmd->arg,state->user.root);
     if(unlink(cmd->arg)==-1){
       state->message = "550 File unavailable.\n";
     }else{
@@ -450,6 +456,7 @@ void ftp_rmd(Command *cmd, State *state)
   if(!state->logged_in){
     state->message = "530 Please login first.\n";
   }else{
+    getLocalPath(cmd->arg,state->user.root);
     if(rmdir(cmd->arg)==0){
       state->message = "250 Requested file action okay, completed.\n";
     }else{
@@ -468,6 +475,7 @@ void ftp_size(Command *cmd, State *state)
     char filesize[128];
     memset(filesize,0,128);
     /* Success */
+    getLocalPath(cmd->arg,state->user.root);
     if(stat(cmd->arg,&statbuf)==0){
       sprintf(filesize, "213 %d\n", statbuf.st_size);
       state->message = filesize;
@@ -518,6 +526,7 @@ void str_perm(int perm, char *str_perm)
 void ftp_cdup(State *state)
 {
   if(state->logged_in){
+    // TODO check if in root
     chdir("..");
     state->message = "250 Change dir susscefull.\n";
   }else{
@@ -528,7 +537,7 @@ void ftp_cdup(State *state)
 
 void ftp_help(Command *cmd, State *state) 
 {
-  switch(lookup_cmd(cmd->command)){
+  switch(lookup_cmd(cmd->arg)){
     case USER: 
       state->message = "214 Syntax: USER <sp> username\n";
       break;
@@ -619,6 +628,7 @@ void ftp_nlst(Command *cmd, State *state)
     getcwd(cwd_orig,BSIZE);
     
     /* Just chdir to specified path */
+    getLocalPath(cmd->arg,state->user.root);
     if(strlen(cmd->arg)>0&&cmd->arg[0]!='-'){
       chdir(cmd->arg);
     }
@@ -676,7 +686,8 @@ void ftp_nlst(Command *cmd, State *state)
 void ftp_rnfr(Command *cmd, State *state)
 {
   struct stat st;
-  if(state->logged_in){    
+  if(state->logged_in){
+    getLocalPath(cmd->arg,state->user.root);
     int result = stat(cmd->arg, &st);
     if (result != 0) {
       state->message = "450 File not found!\n";
@@ -696,6 +707,7 @@ void ftp_rnto(Command *cmd, State *state)
 {
   int result;
   if(state->logged_in){
+    getLocalPath(cmd->arg,state->user.root);
     result = rename(state->rename, cmd->arg);
     if (result == 0) {
       state->message = "250 Rename susscessfully\n";
@@ -718,6 +730,7 @@ void ftp_appe(Command *cmd, State *state)
     int res = 1;
     const int buff_size = 8192;
 
+    getLocalPath(cmd->arg,state->user.root);
     FILE *fp = fopen(cmd->arg,"a");
 
     if(fp==NULL){

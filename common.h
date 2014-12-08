@@ -29,6 +29,7 @@ typedef struct User
 {
   char username[32];
   char password[32];
+  char root[BSIZE];
 } User;
 
 typedef struct Users
@@ -108,6 +109,8 @@ void parse_command(char *, Command *);
 int create_socket(int port);
 void write_state(State *);
 int accept_connection(int);
+char* getLocalPath(char*,const char*);
+char* getFtpPath(char*, const char*);
 
 /* Commands handle functions*/
 void response(Command *, State *);
