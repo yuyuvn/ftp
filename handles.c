@@ -30,9 +30,9 @@ void response(Command *cmd, State *state)
     case APPE: ftp_appe(cmd, state); break;
     case NOOP:
       if(state->logged_in){
-        state->message = "200 Nice to NOOP you!\n";
+        state->message = "200 Zzz...\n";
       }else{
-        state->message = "530 NOOB hehe.\n";
+        state->message = "530 Please login with USER and PASS\n";
       }
       write_state(state);
       break;
@@ -140,7 +140,7 @@ void ftp_list(Command *cmd, State *state)
       if(state->mode == SERVER){
 
         connection = accept_connection(state->sock_pasv);
-        state->message = "150 Here comes the directory listing.\n";
+        state->message = "150 Sending directory list.\n";
         puts(state->message);
 
         while(entry=readdir(dp)){
@@ -191,7 +191,7 @@ void ftp_list(Command *cmd, State *state)
 /** QUIT command */
 void ftp_quit(State *state)
 {
-  state->message = "221 Goodbye, friend. I never thought I'd die like this.\n";
+  state->message = "221 Goodbye.\n";
   write_state(state);
   close(state->connection);
   exit(0);
@@ -270,7 +270,7 @@ void ftp_mkd(Command *cmd, State *state)
       }
     }
   }else{
-    state->message = "500 Good news, everyone! There's a report on TV with some very bad news!\n";
+    state->message = "500 Login with USER and PASS.\n";
   }
   write_state(state);
 }
