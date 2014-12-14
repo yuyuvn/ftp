@@ -189,12 +189,10 @@ void write_state(State *state)
  * Generate random port for passive mode
  * @param state Client state
  */
-void gen_port(Port *port)
+int gen_port()
 {
   srand(time(NULL));
-  port->p1 = 128 + (rand() % 64);
-  port->p2 = rand() % 0xff;
-
+  return 0xC000 + (rand() % 0x4000); // Range: 49152 to 65535 as IANA port number assignments
 }
 
 /**

@@ -83,19 +83,19 @@ void ftp_pasv(Command *cmd, State *state)
 {
   if(state->logged_in){
     int ip[4];
+    int port;
     char buff[255];
     char *response = "227 Entering Passive Mode (%d,%d,%d,%d,%d,%d)\n";
-    Port *port = malloc(sizeof(Port));
-    gen_port(port);
+    port = gen_port();
     getip(state->connection,ip);
 
     /* Close previous passive socket? */
     close(state->sock_pasv);
 
     /* Start listening here, but don't accept the connection */
-    state->sock_pasv = create_socket((256*port->p1)+port->p2);
-    printf("port: %d\n",256*port->p1+port->p2);
-    sprintf(buff,response,ip[0],ip[1],ip[2],ip[3],port->p1,port->p2);
+    state->sock_pasv = create_socket(port);
+    printf("port: %d\n",port);
+    sprintf(buff,response,ip[0],ip[1],ip[2],ip[3],(port&~0xff)>>8,port&0xff);
     state->message = buff;
     state->mode = SERVER;
     puts(state->message);

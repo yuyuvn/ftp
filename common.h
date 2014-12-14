@@ -19,12 +19,6 @@
   #define BSIZE 1024
 #endif
 
-typedef struct Port
-{
-  int p1;
-  int p2;
-} Port;
-
 typedef struct User
 {
   char username[32];
@@ -101,10 +95,10 @@ static const char *cmdlist_str[] =
 };
 
 /* Welcome message */
-static char *welcome_message = "A very warm welcome!";
+static char *welcome_message = "Welcome to HEDSPI FTP service.";
 
 /* Server functions */
-void gen_port(Port *);
+int gen_port();
 void parse_command(char *, Command *);
 int create_socket(int port);
 void write_state(State *);
