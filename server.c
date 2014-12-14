@@ -298,15 +298,22 @@ char* getFtpPath(char *path, const char *root) {
 
 int main( int arn, char *arv[])
 {
-  int port;
-  if (arn >= 3) {
-    users = get_users(arv[2]);
-  } else {
-    users = get_users("users.txt");
+  int port = 8021;
+  int i,u=0;
+  if (arn > 2) {
+    for (i=1;i<arn;++i) {
+      if (strcmp(arv[i],"-p")==0) {
+        if (arn > ++i) port = atoi(arv[i]);
+        else break;
+      } else if (strcmp(arv[i],"-u")==0) {
+        if (arn > ++i) {
+          users = get_users(arv[i]);
+          u = 1;
+        } else break;
+      }
+    }
   }
-  if (arn >= 2) {
-    port = atoi(arv[1]);
-  } else port = 8021;
+  if (!u) users = get_users("users.txt");
   
   server(port);
   return 0;
